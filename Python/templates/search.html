@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-md mx-auto bg-white p-6 shadow-md rounded">
+    <h2 class="text-2xl font-bold mb-4">Search Face</h2>
+    <!-- <img src= "{{url_for('static', filename='/images/0cd671d0e8e248838776e8b9c3fc72f1.jpg')}}" > -->
+    <form id="searchForm">
+        <div class="mb-4">
+            <label for="file" class="block text-sm font-medium text-gray-700">Upload Image</label>
+            <input type="file" id="searchFile" name="file" class="mt-1 block w-full" accept="image/*" required>
+        </div>
+        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">Search</button>
+    </form>
+    <div id="searchResults" class="mt-6"></div>
+</div>
+{% endblock %}
