@@ -2,6 +2,7 @@ import os
 import json
 import uuid
 from datetime import datetime
+from math import ceil
 from typing import Tuple, List, Dict, Any
 from flask import Flask, request, jsonify, render_template, send_from_directory
 import face_recognition
@@ -10,6 +11,7 @@ from werkzeug.utils import secure_filename
 from functools import lru_cache
 import logging
 from mysql.connector import pooling
+
 
 # Konfigurasi
 UPLOAD_DIR = "Python/static/images_upload"
@@ -133,6 +135,39 @@ def save_face_to_db(name: str, encoding: Any, file_name: str) -> None:
         cursor.close()
         conn.close()
 
+# Constants
+ITEMS_PER_PAGE = 5  # Jumlah item per halaman
+
+def prepare_paginated_response(matches: List[Dict[str, Any]], page: int = 1) -> Dict[str, Any]:
+    """
+    Mempersiapkan response dengan pagination
+    """
+    total_items = len(matches)
+    total_pages = ceil(total_items / ITEMS_PER_PAGE)
+    
+    # Ensure page is within valid range
+    page = max(1, min(page, total_pages)) if total_pages > 0 else 1
+    
+    # Calculate slice indices
+    start_idx = (page - 1) * ITEMS_PER_PAGE
+    end_idx = start_idx + ITEMS_PER_PAGE
+    
+    # Get current page items
+    current_items = matches[start_idx:end_idx]
+    
+    return {
+        "match": bool(matches),
+        "matches": current_items,
+        "pagination": {
+            "current_page": page,
+            "total_pages": total_pages,
+            "total_items": total_items,
+            "items_per_page": ITEMS_PER_PAGE,
+            "has_next": page < total_pages,
+            "has_prev": page > 1
+        }
+    }
+
 @app.route("/add_known_face", methods=["POST"])
 def add_known_face():
     """Add new face endpoint with improved validation and error handling."""
@@ -190,9 +225,14 @@ def add_known_face():
 
 @app.route("/find_face", methods=["POST"])
 def find_face():
-    """Find face endpoint with improved validation and performance."""
+    """Find face endpoint with pagination."""
     try:
-        file = request.files.get('file')
+        if 'file' not in request.files:
+            return jsonify({"error": "File is required"}), 400
+
+        file = request.files['file']
+        page = int(request.form.get('page', 1))  # Get requested page
+        
         is_valid, error_message = validate_image_file(file)
         if not is_valid:
             return jsonify({"error": error_message}), 400
@@ -227,12 +267,13 @@ def find_face():
                 for i, (match, distance) in enumerate(zip(results, face_distances))
                 if match
             ]
-
-            return jsonify({
-                "match": bool(matches),
-                "matches": matches or [],
-                "message": "No matching face found" if not matches else None
-            })
+            
+            # Sort matches by similarity score
+            matches.sort(key=lambda x: x['similarity_score'], reverse=True)
+            
+            # Prepare paginated response
+            response_data = prepare_paginated_response(matches, page)
+            return jsonify(response_data)
 
         finally:
             # Clean up temporary search file
