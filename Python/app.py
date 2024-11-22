@@ -1,130 +1,249 @@
 import os
 import json
 import uuid
-from flask import Flask, request, jsonify , render_template,send_from_directory
+from datetime import datetime
+from typing import Tuple, List, Dict, Any
+from flask import Flask, request, jsonify, render_template, send_from_directory
 import face_recognition
 import mysql.connector
 from werkzeug.utils import secure_filename
+from functools import lru_cache
+import logging
+from mysql.connector import pooling
 
+# Konfigurasi
 UPLOAD_DIR = "Python/static/images_upload"
 SEARCH_DIR = "Python/static/images_search"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(SEARCH_DIR, exist_ok=True)
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 10MB
+MAX_IMAGE_DIMENSION = 1920  # Maximum width/height in pixels
+
+# Konfigurasi logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename='app.log'
+)
+logger = logging.getLogger(__name__)
+
+# Konfigurasi koneksi pool database
+dbconfig = {
+    "host": "localhost",
+    "user": "root",
+    "password": "password",
+    "database": "face_recognition",
+    "pool_name": "mypool",
+    "pool_size": 5
+}
+
+try:
+    connection_pool = mysql.connector.pooling.MySQLConnectionPool(**dbconfig)
+except Exception as e:
+    logger.error(f"Failed to create connection pool: {str(e)}")
+    raise
 
 app = Flask(__name__)
 
-# Koneksi ke database MySQL
+# Inisialisasi direktori
+for directory in [UPLOAD_DIR, SEARCH_DIR]:
+    os.makedirs(directory, exist_ok=True)
+
+def allowed_file(filename: str) -> bool:
+    """Validasi ekstensi file yang diizinkan."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def validate_image_file(file) -> Tuple[bool, str]:
+    """Validasi file gambar."""
+    if not file:
+        return False, "No file provided"
+    
+    if not file.filename:
+        return False, "No filename provided"
+    
+    if not allowed_file(file.filename):
+        return False, f"File type not allowed. Allowed types: {', '.join(ALLOWED_EXTENSIONS)}"
+    
+    # Check file size
+    file.seek(0, os.SEEK_END)
+    size = file.tell()
+    file.seek(0)
+    
+    if size > MAX_FILE_SIZE:
+        return False, f"File size exceeds maximum limit of {MAX_FILE_SIZE/1024/1024}MB"
+    
+    return True, ""
+
 def get_db_connection():
-    return mysql.connector.connect(
-        host="localhost",
-        user="root",  # Ganti dengan user database Anda
-        password="password",  # Ganti dengan password Anda
-        database="face_recognition"  # Ganti dengan nama database Anda
-    )
+    """Get connection from connection pool."""
+    try:
+        return connection_pool.get_connection()
+    except Exception as e:
+        logger.error(f"Error getting database connection: {str(e)}")
+        raise
 
-# Menyimpan encoding wajah baru dan file ke database
-def save_face_to_db(name, encoding, file_name):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("INSERT INTO known_faces (name, encoding, file_name) VALUES (%s, %s, %s)", 
-                   (name, json.dumps(encoding.tolist()), file_name))
-    conn.commit()
-    cursor.close()
-    conn.close()
+@lru_cache(maxsize=100)
+def load_faces_from_db() -> Tuple[List, List, List]:
+    """Load face encodings from database with caching."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT name, encoding, file_name FROM known_faces")
+        faces = cursor.fetchall()
+        
+        known_encodings = []
+        known_names = []
+        file_names = []
+        
+        for name, encoding, file_name in faces:
+            known_encodings.append(json.loads(encoding))
+            known_names.append(name)
+            file_names.append(file_name)
+            
+        return known_encodings, known_names, file_names
+    
+    except Exception as e:
+        logger.error(f"Error loading faces from database: {str(e)}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
 
-# Memuat semua encoding dari database
-def load_faces_from_db():
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT name, encoding, file_name FROM known_faces")
-    faces = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    known_encodings = []
-    known_names = []
-    file_names = []
-    for name, encoding, file_name in faces:
-        known_encodings.append(json.loads(encoding))
-        known_names.append(name)
-        file_names.append(file_name)
-    return known_encodings, known_names, file_names
+def save_face_to_db(name: str, encoding: Any, file_name: str) -> None:
+    """Save face encoding to database."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Tambahkan timestamp
+        created_at = datetime.now()
+        
+        cursor.execute(
+            "INSERT INTO known_faces (name, encoding, file_name, created_at) VALUES (%s, %s, %s, %s)", 
+            (name, json.dumps(encoding.tolist()), file_name, created_at)
+        )
+        conn.commit()
+        
+        # Invalidate cache after new face is added
+        load_faces_from_db.cache_clear()
+        
+    except Exception as e:
+        logger.error(f"Error saving face to database: {str(e)}")
+        raise
+    finally:
+        cursor.close()
+        conn.close()
 
-# Endpoint untuk menambahkan wajah baru
 @app.route("/add_known_face", methods=["POST"])
 def add_known_face():
-    if 'file' not in request.files or 'name' not in request.form:
-        return jsonify({"error": "File and name are required"}), 400
-    file = request.files['file']
-    name = request.form['name']
+    """Add new face endpoint with improved validation and error handling."""
+    try:
+        if 'name' not in request.form:
+            return jsonify({"error": "Name is required"}), 400
+        
+        name = request.form['name'].strip()
+        if not name:
+            return jsonify({"error": "Name cannot be empty"}), 400
+        
+        file = request.files.get('file')
+        is_valid, error_message = validate_image_file(file)
+        if not is_valid:
+            return jsonify({"error": error_message}), 400
 
-    # Generate nama file baru
-    new_file_name = f"{uuid.uuid4().hex}.jpg"
-    file_path = os.path.join(UPLOAD_DIR, new_file_name)
-    file.save(file_path)
+        # Generate unique filename
+        file_ext = file.filename.rsplit('.', 1)[1].lower()
+        new_file_name = f"{uuid.uuid4().hex}.{file_ext}"
+        file_path = os.path.join(UPLOAD_DIR, new_file_name)
+        
+        # Save file
+        file.save(file_path)
+        
+        try:
+            # Verify face encoding
+            image = face_recognition.load_image_file(file_path)
+            encodings = face_recognition.face_encodings(image)
+            
+            if not encodings:
+                os.remove(file_path)
+                return jsonify({"error": "No face detected in the uploaded image"}), 400
+            
+            if len(encodings) > 1:
+                os.remove(file_path)
+                return jsonify({"error": "Multiple faces detected. Please upload an image with only one face"}), 400
+            
+            # Save to database
+            save_face_to_db(name, encodings[0], new_file_name)
+            
+            return jsonify({
+                "message": f"{name} added successfully!",
+                "file_name": new_file_name
+            }), 200
+            
+        except Exception as e:
+            # Clean up file if processing fails
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            raise
+            
+    except Exception as e:
+        logger.error(f"Error in add_known_face: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
 
-    # Verifikasi encoding wajah
-    image = face_recognition.load_image_file(file_path)
-    encodings = face_recognition.face_encodings(image)
-    if not encodings:
-        os.remove(file_path)  # Hapus file jika tidak ada wajah
-        return jsonify({"error": "No face detected in the uploaded image"}), 400
-
-    # Simpan encoding pertama ke database
-    save_face_to_db(name, encodings[0], new_file_name)
-    return jsonify({"message": f"{name} added successfully!", "file_name": new_file_name}), 200
-
-# Endpoint untuk mencari wajah
 @app.route("/find_face", methods=["POST"])
 def find_face():
-    if 'file' not in request.files:
-        return jsonify({"error": "File is required"}), 400
+    """Find face endpoint with improved validation and performance."""
+    try:
+        file = request.files.get('file')
+        is_valid, error_message = validate_image_file(file)
+        if not is_valid:
+            return jsonify({"error": error_message}), 400
 
-    file = request.files['file']
-    filename = secure_filename(file.filename)
-    file_path = os.path.join(SEARCH_DIR, filename)
-    file.save(file_path)
+        # Save file with secure name
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(SEARCH_DIR, filename)
+        file.save(file_path)
 
-    # Muat gambar upload
-    uploaded_image = face_recognition.load_image_file(file_path)
-    uploaded_encodings = face_recognition.face_encodings(uploaded_image)
+        try:
+            # Process image
+            uploaded_image = face_recognition.load_image_file(file_path)
+            uploaded_encodings = face_recognition.face_encodings(uploaded_image)
 
-    # Cek apakah ada wajah dalam gambar
-    if not uploaded_encodings:
-        os.remove(file_path)  # Hapus file jika tidak ada wajah
-        return jsonify({"error": "No face detected in the uploaded image"}), 400
+            if not uploaded_encodings:
+                return jsonify({"error": "No face detected in the uploaded image"}), 400
 
-    # Cek apakah lebih dari satu wajah terdeteksi
-    if len(uploaded_encodings) > 1:
-        os.remove(file_path)  # Hapus file jika lebih dari satu wajah
-        return jsonify({"error": "Multiple faces detected. Please upload an image with only one face"}), 400
+            if len(uploaded_encodings) > 1:
+                return jsonify({"error": "Multiple faces detected. Please upload an image with only one face"}), 400
 
-    uploaded_encoding = uploaded_encodings[0]
+            # Get face matches
+            known_encodings, known_names, file_names = load_faces_from_db()
+            results = face_recognition.compare_faces(known_encodings, uploaded_encodings[0], tolerance=0.6)
+            face_distances = face_recognition.face_distance(known_encodings, uploaded_encodings[0])
 
-    # Muat wajah yang dikenal dari database
-    known_encodings, known_names, file_names = load_faces_from_db()
-    results = face_recognition.compare_faces(known_encodings, uploaded_encoding, tolerance=0.6)
-    face_distances = face_recognition.face_distance(known_encodings, uploaded_encoding)
+            matches = [
+                {
+                    "name": known_names[i],
+                    "similarity_score": round(1 - distance, 2),
+                    "file_name": file_names[i]
+                }
+                for i, (match, distance) in enumerate(zip(results, face_distances))
+                if match
+            ]
 
-    matches = []
-    for i, match in enumerate(results):
-        if match:
-            matches.append({
-                "name": known_names[i],
-                "similarity_score": round(1 - face_distances[i], 2),
-                "file_name": file_names[i]  # Kembalikan file gambar terkait
+            return jsonify({
+                "match": bool(matches),
+                "matches": matches or [],
+                "message": "No matching face found" if not matches else None
             })
 
-    if matches:
-        return jsonify({
-            "match": True,
-            "matches": matches
-        })
-    else:
-        return jsonify({
-            "match": False,
-            "message": "No matching face found"
-        })
-    
+        finally:
+            # Clean up temporary search file
+            if os.path.exists(file_path):
+                os.remove(file_path)
+
+    except Exception as e:
+        logger.error(f"Error in find_face: {str(e)}")
+        return jsonify({"error": "Internal server error"}), 500
+
+# Routes
 @app.route("/")
 def home():
     return render_template("home.html")
@@ -137,11 +256,12 @@ def upload():
 def search():
     return render_template("search.html")
 
-# Public Image Assets
-# @app.route('/static/<path:filename>') 
-# def send_file(filename): 
+# @app.route('/static/images_upload/<path:filename>')
+# def serve_upload(filename):
+#     """Serve uploaded images with security checks."""
+#     if '..' in filename or filename.startswith('/'):
+#         return jsonify({"error": "Invalid filename"}), 400
 #     return send_from_directory(UPLOAD_DIR, filename)
 
-
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)  # Set debug=False in production
