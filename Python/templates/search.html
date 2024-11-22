@@ -1,16 +1,22 @@
 {% extends "base.html" %}
-
 {% block content %}
 <div class="max-w-md mx-auto bg-white p-6 shadow-md rounded">
     <h2 class="text-2xl font-bold mb-4">Search Face</h2>
-    <!-- <img src= "{{url_for('static', filename='/images/0cd671d0e8e248838776e8b9c3fc72f1.jpg')}}" > -->
     <form id="searchForm">
-        <div class="mb-4">
-            <label for="file" class="block text-sm font-medium text-gray-700">Upload Image</label>
-            <input type="file" id="searchFile" name="file" class="mt-1 block w-full" accept="image/*" required>
+        <div class="form-content">
+            <div class="mb-4">
+                <label for="searchFile" class="block text-sm font-medium text-gray-700">Upload Image</label>
+                <input type="file" id="searchFile" name="file" 
+                       class="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" 
+                       accept="image/*" required>
+                <div id="searchPreviewContainer"></div>
+            </div>
+            <button type="submit" 
+                    class="w-full bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700 transition duration-200">
+                Search
+            </button>
         </div>
-        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded shadow hover:bg-blue-700">Search</button>
     </form>
-    <div id="searchResults" class="mt-6"></div>
+    <div id="searchResults" class="mt-4"></div>
 </div>
 {% endblock %}
