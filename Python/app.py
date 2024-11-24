@@ -305,4 +305,4 @@ def search():
 #     return send_from_directory(UPLOAD_DIR, filename)
 
 if __name__ == "__main__":
-    app.run(debug=False)  # Set debug=False in production
+    app.run(debug=True)  # Set debug=False in production
