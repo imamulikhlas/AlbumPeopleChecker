@@ -8,6 +8,7 @@ __pycache__/
 
 # Distribution / packaging
 .Python
+.env
 env/
 venv/
 ENV/
@@ -33,7 +34,6 @@ htmlcov/
 .cache
 nosetests.xml
 coverage.xml
-*.log
 
 # Pytest
 .pytest_cache/
@@ -89,3 +89,6 @@ ehthumbs.db
 *.swo
 *.~undo-tree~
 .*.sw?
+
+images_upload/
+images_search/

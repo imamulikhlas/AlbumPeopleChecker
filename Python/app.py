@@ -11,11 +11,14 @@ from werkzeug.utils import secure_filename
 from functools import lru_cache
 import logging
 from mysql.connector import pooling
+from dotenv import load_dotenv
 
+# Load environment variables dari file .env
+load_dotenv()
 
 # Konfigurasi
-UPLOAD_DIR = "Python/static/images_upload"
-SEARCH_DIR = "Python/static/images_search"
+UPLOAD_DIR = os.getenv("DB_HOST")
+SEARCH_DIR = os.getenv("SEARCH_DIR")
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 10MB
 MAX_IMAGE_DIMENSION = 1920  # Maximum width/height in pixels
@@ -30,12 +33,12 @@ logger = logging.getLogger(__name__)
 
 # Konfigurasi koneksi pool database
 dbconfig = {
-    "host": "localhost",
-    "user": "root",
-    "password": "password",
-    "database": "face_recognition",
-    "pool_name": "mypool",
-    "pool_size": 5
+    "host": os.getenv("DB_HOST"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "database": os.getenv("DB_NAME"),
+    "pool_name": os.getenv("DB_POOL_NAME"),
+    "pool_size": int(os.getenv("DB_POOL_SIZE", 5))  # Default 5 jika tidak diset
 }
 
 try:
@@ -136,7 +139,7 @@ def save_face_to_db(name: str, encoding: Any, file_name: str) -> None:
         conn.close()
 
 # Constants
-ITEMS_PER_PAGE = 5  # Jumlah item per halaman
+ITEMS_PER_PAGE = int(os.getenv("ITEMS_PER_PAGE"))  # Jumlah item per halaman
 
 def prepare_paginated_response(matches: List[Dict[str, Any]], page: int = 1) -> Dict[str, Any]:
     """
@@ -170,7 +173,7 @@ def prepare_paginated_response(matches: List[Dict[str, Any]], page: int = 1) -> 
 
 @app.route("/add_known_face", methods=["POST"])
 def add_known_face():
-    """Add new face endpoint with improved validation and error handling."""
+    """Add new face endpoint that supports multiple faces in one image."""
     try:
         if 'name' not in request.form:
             return jsonify({"error": "Name is required"}), 400
@@ -195,28 +198,37 @@ def add_known_face():
         try:
             # Verify face encoding
             image = face_recognition.load_image_file(file_path)
-            encodings = face_recognition.face_encodings(image)
+            face_locations = face_recognition.face_locations(image)
+            encodings = face_recognition.face_encodings(image, face_locations)
             
             if not encodings:
                 os.remove(file_path)
                 return jsonify({"error": "No face detected in the uploaded image"}), 400
             
-            if len(encodings) > 1:
-                os.remove(file_path)
-                return jsonify({"error": "Multiple faces detected. Please upload an image with only one face"}), 400
-            
-            # Save to database
-            save_face_to_db(name, encodings[0], new_file_name)
+            # Save each face detected in the image
+            saved_faces = []
+            for i, encoding in enumerate(encodings):
+                # Generate a unique name for each face if multiple faces
+                face_name = f"{name}" if len(encodings) == 1 else f"{name}_{i+1}"
+                
+                # Save to database
+                save_face_to_db(face_name, encoding, new_file_name)
+                saved_faces.append(face_name)
             
             return jsonify({
-                "message": f"{name} added successfully!",
-                "file_name": new_file_name
+                "message": f"Successfully added {len(saved_faces)} faces!",
+                "details": {
+                    "file_name": new_file_name,
+                    "faces_detected": len(saved_faces),
+                    "saved_names": saved_faces
+                }
             }), 200
             
         except Exception as e:
             # Clean up file if processing fails
             if os.path.exists(file_path):
                 os.remove(file_path)
+            logger.error(f"Error processing image: {str(e)}")
             raise
             
     except Exception as e:
@@ -225,13 +237,17 @@ def add_known_face():
 
 @app.route("/find_face", methods=["POST"])
 def find_face():
-    """Find face endpoint with pagination."""
+    """Find face endpoint with pagination and improved similarity threshold."""
     try:
         if 'file' not in request.files:
             return jsonify({"error": "File is required"}), 400
 
         file = request.files['file']
         page = int(request.form.get('page', 1))  # Get requested page
+        
+        # Threshold untuk similarity (0.0 - 1.0)
+        # Semakin tinggi nilai threshold, semakin ketat matching-nya
+        SIMILARITY_THRESHOLD = 0.5  # Sesuaikan nilai ini sesuai kebutuhan
         
         is_valid, error_message = validate_image_file(file)
         if not is_valid:
@@ -255,21 +271,39 @@ def find_face():
 
             # Get face matches
             known_encodings, known_names, file_names = load_faces_from_db()
-            results = face_recognition.compare_faces(known_encodings, uploaded_encodings[0], tolerance=0.6)
+            results = face_recognition.compare_faces(known_encodings, uploaded_encodings[0], tolerance=0.4)  # Menurunkan tolerance untuk matching yang lebih ketat
             face_distances = face_recognition.face_distance(known_encodings, uploaded_encodings[0])
 
-            matches = [
-                {
-                    "name": known_names[i],
-                    "similarity_score": round(1 - distance, 2),
-                    "file_name": file_names[i]
-                }
-                for i, (match, distance) in enumerate(zip(results, face_distances))
-                if match
-            ]
+            matches = []
+            for i, (match, distance) in enumerate(zip(results, face_distances)):
+                similarity_score = round(1 - distance, 2)
+                # Hanya tambahkan ke matches jika similarity score melebihi threshold
+                if match and similarity_score >= SIMILARITY_THRESHOLD:
+                    matches.append({
+                        "name": known_names[i],
+                        "similarity_score": similarity_score,
+                        "file_name": file_names[i],
+                        "confidence_level": get_confidence_level(similarity_score)  # Fungsi baru untuk kategorisasi
+                    })
             
             # Sort matches by similarity score
             matches.sort(key=lambda x: x['similarity_score'], reverse=True)
+            
+            # Jika tidak ada matches yang memenuhi threshold
+            if not matches:
+                return jsonify({
+                    "match": False,
+                    "message": "No faces found with sufficient similarity score",
+                    "matches": [],
+                    "pagination": {
+                        "current_page": 1,
+                        "total_pages": 0,
+                        "total_items": 0,
+                        "items_per_page": ITEMS_PER_PAGE,
+                        "has_next": False,
+                        "has_prev": False
+                    }
+                })
             
             # Prepare paginated response
             response_data = prepare_paginated_response(matches, page)
@@ -284,6 +318,19 @@ def find_face():
         logger.error(f"Error in find_face: {str(e)}")
         return jsonify({"error": "Internal server error"}), 500
 
+def get_confidence_level(similarity_score: float) -> str:
+    """
+    Mengkategorikan similarity score ke dalam level kepercayaan.
+    """
+    if similarity_score >= 0.85:
+        return "Very High"
+    elif similarity_score >= 0.75:
+        return "High"
+    elif similarity_score >= 0.65:
+        return "Medium"
+    else:
+        return "Low"
+        
 # Routes
 @app.route("/")
 def home():

@@ -205,6 +205,51 @@ const renderPagination = (pagination, containerId) => {
     `;
 };
 
+// // Render search results
+// const renderSearchResults = (results) => {
+//     const resultsDiv = document.getElementById('searchResults');
+//     if (!resultsDiv) return;
+
+//     if (results.match) {
+//         resultsDiv.innerHTML = `
+//             <div class="mt-6">
+//                 <h3 class="text-lg font-semibold mb-4">
+//                     Found ${results.pagination.total_items} match${results.pagination.total_items > 1 ? 'es' : ''}
+//                     (Showing page ${results.pagination.current_page} of ${results.pagination.total_pages})
+//                 </h3>
+//                 <div class="space-y-4">
+//                     ${results.matches.map(match => `
+//                         <div class="bg-white rounded-lg shadow-md p-4 flex items-center space-x-4 hover:shadow-lg transition-shadow duration-300">
+//                             <img src="/static/images_upload/${match.file_name}" 
+//                                  alt="${match.name}" 
+//                                  class="w-16 h-16 rounded-full object-cover border-2 border-blue-500">
+//                             <div class="flex-1">
+//                                 <h4 class="font-semibold text-lg text-gray-900">${match.name}</h4>
+//                                 <div class="flex items-center mt-2">
+//                                     <div class="flex-1 bg-gray-200 rounded-full h-2">
+//                                         <div class="bg-blue-600 rounded-full h-2 transition-all duration-500" 
+//                                              style="width: ${match.similarity_score * 100}%"></div>
+//                                     </div>
+//                                     <span class="ml-2 text-sm text-gray-600 font-medium">
+//                                         ${(match.similarity_score * 100).toFixed(1)}%
+//                                     </span>
+//                                 </div>
+//                             </div>
+//                         </div>
+//                     `).join('')}
+//                 </div>
+//                 <div id="paginationControls" class="mt-6"></div>
+//             </div>
+//         `;
+
+//         // Render pagination controls
+//         renderPagination(results.pagination, 'paginationControls');
+//     } else {
+//         showMessage('searchResults', results.message || 'No matching faces found.', 'info');
+//     }
+// };
+
+// Render search results
 // Render search results
 const renderSearchResults = (results) => {
     const resultsDiv = document.getElementById('searchResults');
@@ -217,25 +262,15 @@ const renderSearchResults = (results) => {
                     Found ${results.pagination.total_items} match${results.pagination.total_items > 1 ? 'es' : ''}
                     (Showing page ${results.pagination.current_page} of ${results.pagination.total_pages})
                 </h3>
-                <div class="space-y-4">
-                    ${results.matches.map(match => `
-                        <div class="bg-white rounded-lg shadow-md p-4 flex items-center space-x-4 hover:shadow-lg transition-shadow duration-300">
+                <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    ${results.matches.map((match, index) => `
+                        <figure class="text-center">
                             <img src="/static/images_upload/${match.file_name}" 
                                  alt="${match.name}" 
-                                 class="w-16 h-16 rounded-full object-cover border-2 border-blue-500">
-                            <div class="flex-1">
-                                <h4 class="font-semibold text-lg text-gray-900">${match.name}</h4>
-                                <div class="flex items-center mt-2">
-                                    <div class="flex-1 bg-gray-200 rounded-full h-2">
-                                        <div class="bg-blue-600 rounded-full h-2 transition-all duration-500" 
-                                             style="width: ${match.similarity_score * 100}%"></div>
-                                    </div>
-                                    <span class="ml-2 text-sm text-gray-600 font-medium">
-                                        ${(match.similarity_score * 100).toFixed(1)}%
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
+                                 class="w-full h-48 object-cover rounded-lg shadow-md cursor-pointer"
+                                 onclick="viewImage('/static/images_upload/${match.file_name}', '${match.name}')">
+                            <figcaption class="mt-2 text-sm text-gray-700">${match.name}</figcaption>
+                        </figure>
                     `).join('')}
                 </div>
                 <div id="paginationControls" class="mt-6"></div>
@@ -248,6 +283,48 @@ const renderSearchResults = (results) => {
         showMessage('searchResults', results.message || 'No matching faces found.', 'info');
     }
 };
+
+// Function to view image
+const viewImage = (imageUrl, imageName) => {
+    const modalContainer = document.getElementById('imageModal');
+    if (!modalContainer) return;
+
+    modalContainer.innerHTML = `
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden w-11/12 md:w-1/2">
+                <button 
+                    class="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition duration-200"
+                    onclick="closeImageModal()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+                <img src="${imageUrl}" alt="${imageName}" class="w-full object-contain">
+                <div class="p-4 text-center">
+                    <h3 class="text-lg font-semibold">${imageName}</h3>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+// Function to close the modal
+const closeImageModal = () => {
+    const modalContainer = document.getElementById('imageModal');
+    if (modalContainer) {
+        modalContainer.innerHTML = '';
+    }
+};
+
+// Initialize container for modal
+document.addEventListener('DOMContentLoaded', () => {
+    if (!document.getElementById('imageModal')) {
+        const modalDiv = document.createElement('div');
+        modalDiv.id = 'imageModal';
+        document.body.appendChild(modalDiv);
+    }
+});
+
 
 // Change page function
 const changePage = async (page) => {

@@ -5,23 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Face Recognition App</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        .hover-scale {
+            transition: transform 0.3s ease;
+        }
+        .hover-scale:hover {
+            transform: scale(1.02);
+        }
+    </style>
 </head>
-<body class="bg-gray-100">
-    <nav class="bg-white shadow">
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+    <!-- Animated Navigation -->
+    <nav class="glass-effect fixed w-full shadow-lg z-50">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <a href="{{ url_for('home') }}" class="text-xl font-bold text-gray-900">FaceApp</a>
-                <div class="flex space-x-4">
-                    <a href="{{ url_for('home') }}" class="text-gray-600 hover:text-gray-900">Home</a>
-                    <a href="{{ url_for('upload') }}" class="text-gray-600 hover:text-gray-900">Upload</a>
-                    <a href="{{ url_for('search') }}" class="text-gray-600 hover:text-gray-900">Search</a>
+            <div class="flex justify-between items-center h-16">
+                <a href="{{ url_for('home') }}" class="flex items-center space-x-2">
+                    <span class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
+                        FaceApp
+                    </span>
+                </a>
+                <div class="flex space-x-8">
+                    <a href="{{ url_for('home') }}" class="text-gray-700 hover:text-indigo-600 font-medium transition-colors">Home</a>
+                    <a href="{{ url_for('upload') }}" class="text-gray-700 hover:text-indigo-600 font-medium transition-colors">Upload</a>
+                    <a href="{{ url_for('search') }}" class="text-gray-700 hover:text-indigo-600 font-medium transition-colors">Search</a>
                 </div>
             </div>
         </div>
     </nav>
-    <div class="container mx-auto mt-6">
+
+    <!-- Main Content with top padding for fixed nav -->
+    <div class="container mx-auto pt-24 px-4 sm:px-6 lg:px-8">
         {% block content %}{% endblock %}
     </div>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+    <script>
+        AOS.init({
+            duration: 800,
+            once: true
+        });
+    </script>
 </body>
 </html>
