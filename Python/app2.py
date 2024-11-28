@@ -19,7 +19,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Konfigurasi
-UPLOAD_DIR = os.getenv("DB_HOST")
+UPLOAD_DIR = os.getenv("UPLOAD_DIR")
 SEARCH_DIR = os.getenv("SEARCH_DIR")
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 10MB
