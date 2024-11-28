@@ -5,6 +5,8 @@ Project iseng gabut sambil nunggu kerjaan
 ## FLOW CHART
 ![App Screenshot](https://raw.githubusercontent.com/imamulikhlas/AlbumPeopleChecker/refs/heads/main/readme/AlbumPeopleChecker.png)  
 
+## Tech Stack  
+**Client:** Python v 3.11
 
 ## Run Locally  
 
@@ -17,13 +19,18 @@ Clone the project
 Go to the project directory  
 
 ~~~bash  
-  cd AlbumPeopleChecker
+  cd AlbumPeopleChecker/Python
+~~~
+
+Install Depedencies
+~~~bash  
+  pip install -r requirement.txt
 ~~~
 
 Start the server  
 
 ~~~bash  
-py app.py
+  py app.py
 ~~~
 
 ## License  
