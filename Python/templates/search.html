@@ -2,33 +2,126 @@
 {% block content %}
 <div class="max-w-4xl mx-auto" data-aos="fade-up">
     <div class="glass-effect p-8 rounded-2xl shadow-xl">
-        <h2 class="text-3xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
+        <h2 class="text-3xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
             Face Search
         </h2>
+        <p class="text-gray-600 mb-8">Upload a photo to find matching faces in our database</p>
+
+        <!-- Search Guidelines -->
+        <div class="mb-8 p-4 bg-blue-50 rounded-lg">
+            <h3 class="text-lg font-semibold text-gray-800 mb-3">For Best Search Results:</h3>
+            <ul class="space-y-2 text-gray-700">
+                <li class="flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Use a clear, recent photo of the face
+                </li>
+                <li class="flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Ensure the face is well-lit and in focus
+                </li>
+                <li class="flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Front-facing angle works best
+                </li>
+                <li class="flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Jangan Pakai Foto yang diFilter-Filter gak kedetek dia nanti estegee....
+                </li>
+            </ul>
+        </div>
+
         <form id="searchForm" class="space-y-6">
             <div class="space-y-4">
                 <div class="relative">
-                    <label for="searchFile" class="block text-sm font-medium text-gray-700 mb-2">Upload Image</label>
+                    <label for="searchFile" class="block text-sm font-medium text-gray-700 mb-2">Upload Search Image</label>
                     <div class="relative border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-indigo-500 transition-colors">
                         <input type="file" id="searchFile" name="file"
                                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                               accept="image/*" required>
+                               accept="image/jpeg,image/png" required>
                         <div class="text-center">
                             <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                                 <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4-4m4-4h.01" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                             <p class="mt-1 text-sm text-gray-600">Drop your image here or click to browse</p>
+                            <p class="text-xs text-gray-500 mt-2">Supported formats: JPG, PNG (max 5MB)</p>
                         </div>
                     </div>
-                    <div id="searchPreviewContainer" class="mt-4"></div>
+                    <div id="searchPreviewContainer" class="mt-4 flex justify-center">
+                        <!-- Preview will be inserted here -->
+                    </div>
                 </div>
+
+                <!-- Search Options -->
+                <!-- <div class="bg-gray-50 p-4 rounded-lg">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-3">Search Options:</h4>
+                    <div class="space-y-2">
+                        <div class="flex items-center">
+                            <input type="range" id="threshold" name="threshold" 
+                                   min="0.5" max="0.9" step="0.1" value="0.7"
+                                   class="w-full h-2 bg-blue-100 rounded-lg appearance-none cursor-pointer">
+                            <span class="ml-2 text-sm text-gray-600">Match Threshold</span>
+                        </div>
+                        <p class="text-xs text-gray-500">Higher threshold = more exact matches</p>
+                    </div>
+                </div> -->
+
                 <button type="submit"
-                        class="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all hover-scale">
+                        class="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all hover:scale-105 transform duration-200 flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
                     Search Faces
                 </button>
             </div>
         </form>
-        <div id="searchResults" class="mt-8 space-y-4"></div>
+
+        <!-- Loading State -->
+        <div id="searchLoading" class="hidden mt-8 text-center">
+            <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto"></div>
+            <p class="mt-2 text-gray-600">Searching for matches...</p>
+        </div>
+
+        <!-- Results Section -->
+        <div id="searchResults" class="mt-8 space-y-4">
+            <!-- Results will be dynamically inserted here -->
+        </div>
+
+        <!-- No Results State -->
+        <div id="noResults" class="hidden mt-8 text-center text-gray-600">
+            <p>No matching faces found. Try adjusting the threshold or using a different photo.</p>
+        </div>
+
+        <!-- Privacy Notice -->
+        <div class="mt-8 text-xs text-gray-500 text-center">
+            <p>Search results are displayed in order of match confidence. All searches are processed securely and privately.</p>
+        </div>
     </div>
 </div>
+
+<!-- Optional: Add JavaScript for preview -->
+<!-- <script>
+document.getElementById('searchFile').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const preview = document.createElement('img');
+            preview.src = e.target.result;
+            preview.className = 'max-h-48 rounded-lg shadow';
+            const container = document.getElementById('searchPreviewContainer');
+            container.innerHTML = '';
+            container.appendChild(preview);
+        }
+        reader.readAsDataURL(file);
+    }
+});
+</script> -->
 {% endblock %}

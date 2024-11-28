@@ -3,38 +3,104 @@
 <div class="max-w-3xl mx-auto" data-aos="fade-up">
     <div class="glass-effect p-8 rounded-2xl shadow-xl">
         <h2 class="text-3xl font-bold mb-8 bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-purple-600">
-            Upload Face
+            Face Recognition Upload
         </h2>
+        
+        <!-- Requirements Section -->
+        <div class="mb-8 p-4 bg-blue-50 rounded-lg">
+            <h3 class="text-lg font-semibold text-gray-800 mb-3">Photo Requirements:</h3>
+            <ul class="space-y-2 text-gray-700">
+                <li class="flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Clear, front-facing photo with good lighting
+                </li>
+                <li class="flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Neutral expression, eyes open and visible
+                </li>
+                <!-- <li class="flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    No sunglasses or face coverings
+                </li> -->
+                <li class="flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Recommended size: 500x500 pixels minimum
+                </li>
+                <li class="flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Supported formats: JPG, PNG (max 5MB)
+                </li>
+                <li class="flex items-center">
+                    <svg class="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Jangan Pakai Foto yang diFilter-Filter gak kedetek dia nanti estegee....
+                </li>
+            </ul>
+        </div>
+
         <form id="uploadForm" class="space-y-6">
             <div class="space-y-4">
                 <div>
-                    <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
                     <input type="text" id="name" name="name"
                            class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-colors"
+                           placeholder="Enter your full name"
                            required>
                 </div>
+                
                 <div class="relative">
-                    <label for="file" class="block text-sm font-medium text-gray-700 mb-2">Image</label>
+                    <label for="file" class="block text-sm font-medium text-gray-700 mb-2">Face Image</label>
                     <div class="relative border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-indigo-500 transition-colors">
                         <input type="file" id="file" name="file"
                                class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                               accept="image/*" required>
+                               accept="image/jpeg,image/png" required>
                         <div class="text-center">
                             <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
                                 <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4-4m4-4h.01" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                             <p class="mt-1 text-sm text-gray-600">Drop your image here or click to browse</p>
+                            <p class="text-xs text-gray-500 mt-2">Maximum file size: 5MB</p>
                         </div>
                     </div>
                     <div id="uploadPreviewContainer" class="mt-4"></div>
                 </div>
+
+                <!-- Tips Section -->
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h4 class="text-sm font-semibold text-gray-700 mb-2">Tips for Best Results:</h4>
+                    <ul class="text-xs text-gray-600 space-y-1">
+                        <li>• Ensure your face is centered and takes up about 60% of the frame</li>
+                        <li>• Use natural lighting, preferably facing a window</li>
+                        <li>• Avoid harsh shadows on your face</li>
+                        <li>• Keep a neutral background</li>
+                    </ul>
+                </div>
+
                 <button type="submit"
-                        class="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all hover-scale">
+                        class="w-full py-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all hover:scale-105 transform duration-200">
                     Upload Face
                 </button>
             </div>
         </form>
+        
+        <!-- Processing Message -->
         <div id="uploadMessage" class="mt-6 text-center"></div>
+        
+        <!-- Privacy Notice -->
+        <div class="mt-6 text-xs text-gray-500 text-center">
+            <p>Your privacy is important to us. Uploaded photos are processed securely and used only for face recognition purposes.</p>
+        </div>
     </div>
 </div>
 {% endblock %}
